@@ -585,7 +585,7 @@ module.exports = function(code, options) {
 		return result;
 	}
 
-
+	options = options || {};
 	options.padding_html = (options.padding_html || ';').toString();
 	switch (typeof options.shape) {
 		case 'function':
