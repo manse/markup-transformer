@@ -1,0 +1,28 @@
+{
+  "name": "markup-transformer",
+  "version": "0.0.1",
+  "description": "markup-transformer makes your html/css/javascript source into ASCII Art with keeping syntax.",
+  "main": "index.js",
+  "dependencies": {
+    "htmlparser": "1.7.7",
+    "uglify-js": "2.4.15",
+    "css": "^2.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/manse/node-markup-transformer.git"
+  },
+  "keywords": [
+    "ascii",
+    "art",
+    "html",
+    "stylesheet",
+    "javascript"
+  ],
+  "author": {
+    "name": "Ryota Mannari",
+    "email": "info@manse.jp"
+  },
+  "license": "BSD",
+  "homepage": "https://github.com/manse/node-markup-transformer"
+}
