@@ -158,11 +158,15 @@ function parseHTML(html) {
 					continue;
 
 					case 'script':
-					list = list.concat(parseJS(node.children[0].raw));
+					if (!attribs.type || attribs.type == 'text/javascript') {
+						list = list.concat(parseJS(node.children[0].raw));
+					}
 					break;
 
 					case 'style':
-					list = list.concat(parseCSS(node.children[0].raw));
+					if (!attribs.type || attribs.type == 'text/css') {
+						list = list.concat(parseCSS(node.children[0].raw));
+					}
 					break;
 
 					default:
@@ -460,6 +464,7 @@ function generateBlock(list, width, startAt, eol, tailMustPadding) {
 function generateLine(list, map, startAt) {
 	var minScore = 1e6;
 	var minScoreLine = null;
+
 	for (var retry = 0, maxRetry = 5; retry <= maxRetry; retry++) {
 		var lastTry = retry == maxRetry;
 		var start = startAt;
@@ -504,28 +509,24 @@ function generateLine(list, map, startAt) {
 
 
 function generateCode(list, shapeCallback) {
-	var startAt = 1;
 	var code = list[0] ? list[0].code : '';
-	var kill = false;
-	for (var i = 0; !kill; i++) {
+
+	for (var i = 0, startAt = 1, kill = false; !kill; i++) {
 		var line = generateLine(list, parseMap(shapeCallback(i)), startAt);
 
-		if (!line) {
-			line = [];
-			for (var j = startAt, jj = list.length; j < jj; j++) {
-				line.push({
-					node: list[j],
-					position: j
-				});
-			}
-			kill = true;
-		} else {
+		if (line) {
 			for (var j = line.length - 1; j >= 0; j--) {
 				if (line[j].position) {
 					startAt = line[j].position + 1;
 					break;
 				}
 			}
+		} else {
+			line = [];
+			for (var j = startAt, jj = list.length; j < jj; j++) {
+				line.push({node: list[j], position: j});
+			}
+			kill = true;
 		}
 		code += render(line);
 	}
@@ -536,6 +537,7 @@ function generateCode(list, shapeCallback) {
 
 function render(line) {
 	var code = '';
+
 	for (var i = 0, ii = line.length; i < ii; i++) {
 		var block = line[i];
 		if (!block.paddingonly && block.node) {
