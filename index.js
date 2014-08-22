@@ -376,71 +376,83 @@ function parseMap(map) {
 }
 
 
-function generateBlock(list, width, startAt, eol, tailMustPadding) {
-	var position = [];
+function generateBlock(list, width, startAt, eol, paddingEnd) {
+	var blocks = [];
 	var length = 0;
-	var lastPaddingIndex = -1;
+	var lastPaddingLocalIndex = -1;
+	var lastPaddingGlobalIndex = -1;
 	for (var p = startAt, pp = list.length; p < pp; p++) {
 		var node = list[p];
 		if (length + node.code.length >= width && !eol) break; 
-		position.push({
+		blocks.push({
 			position: p,
-			node: node
+			code: node.code
 		});
 		length += node.code.length;
-		if (node.padding) lastPaddingIndex = p - startAt;
+		if (node.padding) {
+			lastPaddingLocalIndex = p - startAt;
+			lastPaddingGlobalIndex = p;
+		}
 		if (length >= width && eol) break; 
 	}
 
-	if (tailMustPadding) {
-		if (lastPaddingIndex == -1) {
-			position = [];
+	if (paddingEnd) {
+		if (lastPaddingLocalIndex == -1) {
+			blocks = [];
 			length = 0;
 		} else {
-			position = position.slice(0, lastPaddingIndex + 1);
+			blocks = blocks.slice(0, lastPaddingLocalIndex + 1);
 			length = 0;
-			for (var i = 0, ii = position.length; i < ii; i++) {
-				length += position[i].node.code.length;
+			for (var i = 0, ii = blocks.length; i < ii; i++) {
+				length += blocks[i].code.length;
 			}
-			position[lastPaddingIndex].padding = Math.abs(width - length);
+			blocks[lastPaddingLocalIndex].padding = {
+				width: Math.abs(width - length),
+				using: list[lastPaddingGlobalIndex].padding
+			}
 		}
 	}
 
 	var before = list[startAt - 1];
-	if (position.length == 0) {
+	if (blocks.length == 0) {
 		if (before && before.padding) {
 			return [{
 				position: startAt - 1,
-				padding: width,
-				paddingonly: true,
-				node: before
+				padding: {
+					width: width,
+					using: before.padding
+				}
 			}];
 		}
 	} else if (length == width || eol) {
-		return position;
+		return blocks;
 	} else if (before && before.padding) {
-		position.unshift({
+		blocks.unshift({
 			position: startAt - 1,
-			paddingonly: true,
-			padding: width - length,
-			node: before
+			padding: {
+				width: width - length,
+				using: before.padding
+			}
 		});
-		return position;
-	} else if (lastPaddingIndex != -1) {
-		position[lastPaddingIndex].padding = width - length;
-		return position;
-	} else if (position.length > 1) {
+		return blocks;
+	} else if (lastPaddingLocalIndex != -1) {
+		blocks[lastPaddingLocalIndex].padding = {
+			width: width - length,
+			using: list[lastPaddingGlobalIndex].padding
+		};
+		return blocks;
+	} else if (blocks.length > 1) {
 		var position2 = [];
 		var dummySpace = width - length;
-		for (var i = 0, ii = position.length - 1, step = dummySpace / ii; i < ii; i++) {
-			position2.push(position[i]);
+		for (var i = 0, ii = blocks.length - 1, step = dummySpace / ii; i < ii; i++) {
+			position2.push(blocks[i]);
 
 			var space = Math.floor((i + 1) * step) - Math.floor(i * step);
 			position2.push({
 				space: space
 			});
 		}
-		position2.push(position[position.length - 1]);
+		position2.push(blocks[blocks.length - 1]);
 		return position2;
 	}
 	return null;
@@ -458,11 +470,11 @@ function generateLine(list, map, startAt) {
 		var line = [];
 		if (lastTry) {
 			for (var ii = list.length; !list[start].padding && start < ii; start++) {
-				line.push({position: start, node: list[start]});
+				line.push({position: start, code: list[start].code});
 			}
 		} else {
 			for (var ii = start + retry; start < ii; start++) {
-				line.push({position: start, node: list[start]});
+				line.push({position: start, code: list[start].code});
 			}
 		}
 		line.push({breakline: true});
@@ -481,9 +493,9 @@ function generateLine(list, map, startAt) {
 
 		var score = 0;
 		for (var i = 0, ii = line.length; i < ii; i++) {
-			var node = line[i];
-			if (node.node) score += node.node.code.length;
-			if (node.padding) score += node.padding * 4;
+			var block = line[i];
+			if (block.code) score += block.code.length;
+			if (block.padding) score += block.padding.width * 4;
 		}
 		if (score < minScore) {
 			minScore = score;
@@ -517,11 +529,11 @@ function generateCode(list, shapeCallback) {
 
 		for (var j = 0, jj = line.length; j < jj; j++) {
 			var block = line[j];
-			if (!block.paddingonly && block.node) {
-				code += block.node.code;
+			if (block.code) {
+				code += block.code;
 			}
 			if (block.padding) {
-				code += block.node.padding(block.padding);
+				code += block.padding.using(block.padding.width);
 			}
 			if (block.space) {
 				for (var k = 0, kk = block.space; k < kk; k++) {
