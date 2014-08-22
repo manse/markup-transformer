@@ -450,20 +450,16 @@ function generateLine(list, map, startAt) {
 		if (lastTry) {
 			for (var i = startAt, ii = list.length; i < ii; i++) {
 				result.push({
-					positions: [{
-						position: start,
-						node: list[start]
-					}]
+					position: start,
+					node: list[start]
 				});
 				if (list[start++].padding) break;
 			}
 		} else {
 			for (var i = 0; i < retry; i++) {
 				result.push({
-					positions: [{
-						position: start,
-						node: list[start++]
-					}]
+					position: start,
+					node: list[start++]
 				});
 			}
 		}
@@ -474,7 +470,7 @@ function generateLine(list, map, startAt) {
 		for (var i = 0, ii = map.length; i < ii; i++) {
 			if (!map[i].fill) {
 				result.push({
-					spaces: map[i].width
+					space: map[i].width
 				});
 			} else {
 				var b = generateBlock(list, map[i].width, start, i + 1 == ii, lastTry);
@@ -483,9 +479,7 @@ function generateLine(list, map, startAt) {
 					break;
 				}
 				start = b[b.length - 1].position + 1;
-				result.push({
-					positions: b
-				});
+				result = result.concat(b);
 			}
 		}
 		if (!kill) {
@@ -500,12 +494,8 @@ function generateLine(list, map, startAt) {
 		var result = results[i];
 		for (var j = 0, jj = result.length; j < jj; j++) {
 			var node = result[j];
-			if (node.positions) {
-				for (var k = 0, kk = node.positions.length; k < kk; k++) {
-					if (node.positions[k].node) score += node.positions[k].node.code.length;
-					if (node.positions[k].padding) score += node.positions[k].padding * 4;
-				}
-			}
+			if (node.node) score += node.node.code.length;
+			if (node.padding) score += node.padding * 4;
 		}
 		if (score < minScore) {
 			minScore = score;
@@ -529,18 +519,14 @@ function generateCode(list, shapeCallback) {
 			line = [];
 			for (var j = startAt, jj = list.length; j < jj; j++) {
 				line.push({
-					positions: [
-					{
-						node: list[j],
-						position: j
-					}
-					]
+					node: list[j],
+					position: j
 				});
 			}
 		}
 		for (var j = line.length - 1; j >= 0; j--) {
-			if (line[j].positions) {
-				startAt = line[j].positions[line[j].positions.length - 1].position + 1;
+			if (line[j].position) {
+				startAt = line[j].position + 1;
 				break;
 			}
 		}
@@ -555,25 +541,18 @@ function render(datas) {
 	var result = '';
 	for (var i = 0, ii = datas.length; i < ii; i++) {
 		var data = datas[i];
-		if (data.positions) {
-			for (var j = 0, jj = data.positions.length; j < jj; j++) {
-				if (!data.positions[j].paddingonly && data.positions[j].node) {
-					result += data.positions[j].node.code;
-				}
-				if (data.positions[j].padding) {
-					result += data.positions[j].node.padding(data.positions[j].padding);
-				}
-				if (data.positions[j].space) {
-					for (var k = 0, kk = data.positions[j].space; k < kk; k++) {
-						result += ' ';
-					}
-				}
-			}
-		} else if (data.spaces) {
-			for (var j = 0; j < data.spaces; j++) {
+		if (!data.paddingonly && data.node) {
+			result += data.node.code;
+		}
+		if (data.padding) {
+			result += data.node.padding(data.padding);
+		}
+		if (data.space) {
+			for (var k = 0, kk = data.space; k < kk; k++) {
 				result += ' ';
 			}
-		} else if (data.breakline) {
+		}
+		if (data.breakline) {
 			result += "\n";
 		}
 	}
@@ -584,6 +563,41 @@ function render(datas) {
 module.exports = function(code, options) {
 	options = options || {};
 	options.padding_html = (options.padding_html || ';').toString();
+	switch (typeof options.shape) {
+		case 'function':
+		break;
+
+		case 'string':
+		var shapeLines = options.shape.split("\n");
+		options.shape = function(n) {
+			return shapeLines[n % shapeLines.length];
+		};
+		break;
+
+		default:
+		options.shape = defaultShape;
+	}
+
+	var list;
+	switch (((options.syntax || '') + '').toLowerCase()) {
+		case 'css':
+		case 'stylesheet':
+		list = parser.css(code);
+		break;
+
+		case 'js':
+		case 'javascript':
+		list = parser.js(code);
+		break;
+
+		default:
+		list = parser.html(code);
+	}
+
+	return generateCode(list, options.shape);
+};
+
+options.padding_html = (options.padding_html || ';').toString();
 	switch (typeof options.shape) {
 		case 'function':
 		break;
