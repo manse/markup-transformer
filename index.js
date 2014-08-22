@@ -222,10 +222,10 @@ function parseCSS(css) {
 
 	function pushSplit(value, delimiter) {
 		var isSpace = (delimiter == ' ');
-		var values = value.split(delimiter);
+		var values = trim(value).split(delimiter);
 		for (var i = 0, ii = values.length; i < ii; i++) {
 			var tail = (i + 1 == ii);
-			var value = values[i].replace(/^\s+/, '').replace(/\s+$/, '');
+			var value = values[i];
 			if (isSpace) {
 				push(value + (tail ? '' : ' '));
 			} else {
@@ -252,7 +252,7 @@ function parseCSS(css) {
 				case 'page':
 				push('@page ');
 				for (var j = 0, jj = entry.selectors.length; j < jj; j++) {
-					push(entry.selectors[j].replace(/^\s+/, '').replace(/\s+$/, ''));
+					push(trim(entry.selectors[j]));
 					if (j + 1 != jj) push(',');
 				}
 				push('{');
@@ -297,7 +297,7 @@ function parseCSS(css) {
 					var keyframes = entry.keyframes[j];
 					if (keyframes.type != 'keyframe') continue;
 					for (var k = 0, kk = keyframes.values.length; k < kk; k++) {
-						push(keyframes.values[k].replace(/^\s+/, '').replace(/\s+$/, ''));
+						push(trim(keyframes.values[k]));
 						if (k + 1 != kk) push(',');
 					}
 					push('{');
@@ -591,3 +591,6 @@ function generateKey(seed, len) {
 }
 
 
+function trim(str) {
+	return str.replace(/^\s+/, '').replace(/\s+$/, '').replace(/\s+/g, ' ');
+}
