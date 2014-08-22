@@ -192,7 +192,7 @@ function parseCSS(css) {
 	function push() {
 		for (var i = 0, ii = arguments.length; i < ii; i++) {
 			var code = arguments[i].replace(/\n/g, '');
-			if (code == ';') {
+			if (code == ';' || code == '') {
 				list.push({code: code, padding: paddingCSSJS});
 			} else {
 				list.push({code: code});
@@ -215,7 +215,8 @@ function parseCSS(css) {
 					if (j + 1 != jj) push(',');
 				}
 			}
-			push(';');
+			if (i + 1 != ii) push(';');
+			else push('');
 		}
 	}
 
@@ -248,6 +249,17 @@ function parseCSS(css) {
 				push('}');
 				break;
 
+				case 'page':
+				push('@page ');
+				for (var j = 0, jj = entry.selectors.length; j < jj; j++) {
+					push(entry.selectors[j].replace(/^\s+/, '').replace(/\s+$/, ''));
+					if (j + 1 != jj) push(',');
+				}
+				push('{');
+				pushDeclarations(entry.declarations);
+				push('}');
+				break;
+
 				case 'charset':
 				case 'import':
 				case 'namespace':
@@ -262,6 +274,13 @@ function parseCSS(css) {
 				push('@document ');
 				pushSplit(entry.document, ',');
 				push('{');
+				pushRules(entry.rules || []);
+				push('}');
+				break;
+
+				case 'media':
+				case 'supports':
+				push('@' + entry.type + ' ', entry[entry.type], '{');
 				pushRules(entry.rules || []);
 				push('}');
 				break;
@@ -285,30 +304,6 @@ function parseCSS(css) {
 					pushDeclarations(keyframes.declarations);
 					push('}');
 				}
-				push('}');
-				break;
-
-				case 'media':
-				push('@media ', entry.media, '{');
-				pushRules(entry.rules || []);
-				push('}');
-				break;
-
-				case 'page':
-				push('@page ');
-				for (var k = 0, kk = entry.selectors.length; k < kk; k++) {
-					push(entry.selectors[k].replace(/^\s+/, '').replace(/\s+$/, ''));
-					if (k + 1 != kk) push(',');
-				}
-				push('{');
-				pushDeclarations(entry.declarations);
-				push('}');
-
-				break;
-
-				case 'supports':
-				push('@supports ', entry.supports, '{');
-				pushRules(entry.rules);
 				push('}');
 				break;
 			}
@@ -395,7 +390,7 @@ function generateBlock(list, width, startAt, eol, tailMustPadding) {
 	var position = [];
 	var length = 0;
 	var lastPaddingIndex = -1;
-	for (var i = 0, p = startAt, pp = list.length; p < pp; p++, i++) {
+	for (var p = startAt, pp = list.length; p < pp; p++) {
 		var node = list[p];
 		if (length + node.code.length >= width && !eol) break; 
 		position.push({
@@ -403,7 +398,7 @@ function generateBlock(list, width, startAt, eol, tailMustPadding) {
 			node: node
 		});
 		length += node.code.length;
-		if (node.padding) lastPaddingIndex = i;
+		if (node.padding) lastPaddingIndex = p - startAt;
 		if (length >= width && eol) break; 
 	}
 
