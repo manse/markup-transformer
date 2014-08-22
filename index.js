@@ -54,8 +54,8 @@ module.exports = function(code, options) {
 //----------------------------------------
 
 function paddingHTML(n) {
-	if (n <= 4) {
-		return ' pad'.substr(0, n);
+	if (n <= 3) {
+		return repeat(' ', n);
 	} else {
 		var pad = '';
 		for (var i = 0, ii = Math.floor(n / 4), spaces = (n - 3 * ii) / ii; i < ii; i++) {
@@ -495,7 +495,7 @@ function generateLine(nodes, map, startAt) {
 		for (var i = 0, ii = line.length; i < ii; i++) {
 			var block = line[i];
 			if (block.code) score += block.code.length;
-			if (block.padding) score += block.padding.width * 4;
+			if (block.padding) score += block.padding.width * 5;
 		}
 		if (score < minScore) {
 			minScore = score;
