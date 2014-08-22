@@ -96,10 +96,9 @@ function parseHTML(html) {
 				break;
 
 				case 'text':
-				var words = trim2(node.raw).split(' ');
+				var words = trim(node.raw).split(' ');
 				for (var j = 0, jj = words.length; j < jj; j++) {
-					var word = trim(words[j]);
-					push(word + (j + 1 == jj ? '' : ' '), 'text');
+					push(words[j] + (j + 1 == jj ? '' : ' '), 'text');
 				}
 				break;
 
@@ -158,10 +157,10 @@ function parseHTML(html) {
 	new htmlparser.Parser(handler).parseComplete(html);
 	dig(handler.dom);
 
-	var list = [{code: ''}];
+	var list = [];
 	for (var i = 0, j = 0, ii = temp.length, lastType; i < ii; i++) {
 		var tmp = temp[i];
-		if (lastType == tmp.type || !tmp.type) {
+		if (i && (lastType == tmp.type || !tmp.type)) {
 			list[++j] = tmp;
 		} else {
 			if (!list[j]) {
@@ -213,7 +212,7 @@ function parseCSS(css) {
 
 	function pushSplit(value, delimiter) {
 		var isSpace = (delimiter == ' ');
-		var values = trim2(value).split(delimiter);
+		var values = trim(value).split(delimiter);
 		for (var i = 0, ii = values.length; i < ii; i++) {
 			var tail = (i + 1 == ii);
 			var value = values[i];
@@ -243,7 +242,7 @@ function parseCSS(css) {
 				case 'page':
 				push('@page ');
 				for (var j = 0, jj = entry.selectors.length; j < jj; j++) {
-					push(trim2(entry.selectors[j]));
+					push(trim(entry.selectors[j]));
 					if (j + 1 != jj) push(',');
 				}
 				push('{');
@@ -288,7 +287,7 @@ function parseCSS(css) {
 					var keyframes = entry.keyframes[j];
 					if (keyframes.type != 'keyframe') continue;
 					for (var k = 0, kk = keyframes.values.length; k < kk; k++) {
-						push(trim2(keyframes.values[k]));
+						push(trim(keyframes.values[k]));
 						if (k + 1 != kk) push(',');
 					}
 					push('{');
@@ -577,9 +576,5 @@ function repeat(str, count) {
 }
 
 function trim(str) {
-	return str.replace(/^\s+/, '').replace(/\s+$/, '');
-}
-
-function trim2(str) {
-	return trim(str).replace(/\s+/g, ' ');
+	return str.replace(/^\s+/, '').replace(/\s+$/, '').replace(/\s+/g, ' ');
 }
