@@ -27,23 +27,23 @@ module.exports = function(code, options) {
 		options.shape = defaultShape;
 	}
 
-	var list;
+	var nodes;
 	switch (((options.syntax || '') + '').toLowerCase()) {
 		case 'css':
 		case 'stylesheet':
-		list = parseCSS(code);
+		nodes = parseCSS(code);
 		break;
 
 		case 'js':
 		case 'javascript':
-		list = parseJS(code);
+		nodes = parseJS(code);
 		break;
 
 		default:
-		list = parseHTML(code);
+		nodes = parseHTML(code);
 	}
 
-	return generateCode(list, options.shape);
+	return generateCode(nodes, options.shape);
 };
 
 
@@ -157,35 +157,35 @@ function parseHTML(html) {
 	new htmlparser.Parser(handler).parseComplete(html);
 	dig(handler.dom);
 
-	var list = [];
+	var nodes = [];
 	for (var i = 0, j = 0, ii = temp.length, lastType; i < ii; i++) {
 		var tmp = temp[i];
 		if (i && (lastType == tmp.type || !tmp.type)) {
-			list[++j] = tmp;
+			nodes[++j] = tmp;
 		} else {
-			if (!list[j]) {
-				list[j] = tmp;
+			if (!nodes[j]) {
+				nodes[j] = tmp;
 			} else {
-				list[j].code += tmp.code;
-				list[j].padding = tmp.padding;
+				nodes[j].code += tmp.code;
+				nodes[j].padding = tmp.padding;
 			}
 		}
 		lastType = tmp.type;
 	}
-	return list;
+	return nodes;
 }
 
 
 function parseCSS(css) {
-	var list = [];
+	var nodes = [];
 
 	function push() {
 		for (var i = 0, ii = arguments.length; i < ii; i++) {
 			var code = arguments[i].replace(/\n/g, '');
 			if (code == ';' || code == '') {
-				list.push({code: code, padding: paddingCSSJS});
+				nodes.push({code: code, padding: paddingCSSJS});
 			} else {
-				list.push({code: code});
+				nodes.push({code: code});
 			}
 		}
 	}
@@ -300,7 +300,7 @@ function parseCSS(css) {
 		}
 	}
 	pushRules(nodeCSS.parse(css).stylesheet.rules)
-	return list;
+	return nodes;
 }
 
 
@@ -312,17 +312,17 @@ function parseJS(js) {
 	var gets = stream.gets();
 
 	function next(pad) {
-		if (pad) list[cursor].padding = paddingCSSJS;
-		list[++cursor] = {code: ''};
+		if (pad) nodes[cursor].padding = paddingCSSJS;
+		nodes[++cursor] = {code: ''};
 	}
 
 	function push() {
 		for (var i = 0, ii = arguments.length; i < ii; i++) {
-			list[cursor].code += arguments[i].replace(/\n/g, '');
+			nodes[cursor].code += arguments[i].replace(/\n/g, '');
 		}
 	}
 
-	var list = [{code: ''}];
+	var nodes = [{code: ''}];
 	var cursor = 0;
 	var infor = 0;
 	for (var i = 0, ii = gets.length; i < ii; i++) {
@@ -351,7 +351,7 @@ function parseJS(js) {
 		}
 	}
 
-	return list;
+	return nodes;
 }
 
 
@@ -376,15 +376,15 @@ function parseMap(map) {
 }
 
 
-function generateBlock(list, width, startAt, eol, paddingEnd) {
-	var blocks = [];
+function generateBlock(nodes, width, startAt, eol, paddingEnd) {
+	var parts = [];
 	var length = 0;
 	var lastPaddingLocalIndex = -1;
 	var lastPaddingGlobalIndex = -1;
-	for (var p = startAt, pp = list.length; p < pp; p++) {
-		var node = list[p];
+	for (var p = startAt, pp = nodes.length; p < pp; p++) {
+		var node = nodes[p];
 		if (length + node.code.length >= width && !eol) break; 
-		blocks.push({
+		parts.push({
 			position: p,
 			code: node.code
 		});
@@ -398,23 +398,23 @@ function generateBlock(list, width, startAt, eol, paddingEnd) {
 
 	if (paddingEnd) {
 		if (lastPaddingLocalIndex == -1) {
-			blocks = [];
+			parts = [];
 			length = 0;
 		} else {
-			blocks = blocks.slice(0, lastPaddingLocalIndex + 1);
+			parts = parts.slice(0, lastPaddingLocalIndex + 1);
 			length = 0;
-			for (var i = 0, ii = blocks.length; i < ii; i++) {
-				length += blocks[i].code.length;
+			for (var i = 0, ii = parts.length; i < ii; i++) {
+				length += parts[i].code.length;
 			}
-			blocks[lastPaddingLocalIndex].padding = {
+			parts[lastPaddingLocalIndex].padding = {
 				width: Math.abs(width - length),
-				using: list[lastPaddingGlobalIndex].padding
+				using: nodes[lastPaddingGlobalIndex].padding
 			}
 		}
 	}
 
-	var before = list[startAt - 1];
-	if (blocks.length == 0) {
+	var before = nodes[startAt - 1];
+	if (parts.length == 0) {
 		if (before && before.padding) {
 			return [{
 				position: startAt - 1,
@@ -425,41 +425,41 @@ function generateBlock(list, width, startAt, eol, paddingEnd) {
 			}];
 		}
 	} else if (length == width || eol) {
-		return blocks;
+		return parts;
 	} else if (before && before.padding) {
-		blocks.unshift({
+		parts.unshift({
 			position: startAt - 1,
 			padding: {
 				width: width - length,
 				using: before.padding
 			}
 		});
-		return blocks;
+		return parts;
 	} else if (lastPaddingLocalIndex != -1) {
-		blocks[lastPaddingLocalIndex].padding = {
+		parts[lastPaddingLocalIndex].padding = {
 			width: width - length,
-			using: list[lastPaddingGlobalIndex].padding
+			using: nodes[lastPaddingGlobalIndex].padding
 		};
-		return blocks;
-	} else if (blocks.length > 1) {
-		var position2 = [];
+		return parts;
+	} else if (parts.length > 1) {
+		var parts2 = [];
 		var dummySpace = width - length;
-		for (var i = 0, ii = blocks.length - 1, step = dummySpace / ii; i < ii; i++) {
-			position2.push(blocks[i]);
+		for (var i = 0, ii = parts.length - 1, step = dummySpace / ii; i < ii; i++) {
+			parts2.push(parts[i]);
 
 			var space = Math.floor((i + 1) * step) - Math.floor(i * step);
-			position2.push({
+			parts2.push({
 				space: space
 			});
 		}
-		position2.push(blocks[blocks.length - 1]);
-		return position2;
+		parts2.push(parts[parts.length - 1]);
+		return parts2;
 	}
 	return null;
 }
 
 
-function generateLine(list, map, startAt) {
+function generateLine(nodes, map, startAt) {
 	var minScore = 1e6;
 	var minScoreLine = null;
 
@@ -469,12 +469,12 @@ function generateLine(list, map, startAt) {
 
 		var line = [];
 		if (lastTry) {
-			for (var ii = list.length; !list[start].padding && start < ii; start++) {
-				line.push({position: start, code: list[start].code});
+			for (var ii = nodes.length; !nodes[start].padding && start < ii; start++) {
+				line.push({position: start, code: nodes[start].code});
 			}
 		} else {
 			for (var ii = start + retry; start < ii; start++) {
-				line.push({position: start, code: list[start].code});
+				line.push({position: start, code: nodes[start].code});
 			}
 		}
 		line.push({breakline: true});
@@ -483,7 +483,7 @@ function generateLine(list, map, startAt) {
 			if (!map[i].fill) {
 				line.push({space: map[i].width});
 			} else {
-				var blocks = generateBlock(list, map[i].width, start, i + 1 == ii, lastTry);
+				var blocks = generateBlock(nodes, map[i].width, start, i + 1 == ii, lastTry);
 				if (!blocks) return minScoreLine;
 
 				line = line.concat(blocks);
@@ -506,11 +506,11 @@ function generateLine(list, map, startAt) {
 }
 
 
-function generateCode(list, shapeCallback) {
-	var code = list[0] ? list[0].code : '';
+function generateCode(nodes, shapeCallback) {
+	var code = nodes[0] ? nodes[0].code : '';
 
 	for (var i = 0, startAt = 1, kill = false; !kill; i++) {
-		var line = generateLine(list, parseMap(shapeCallback(i)), startAt);
+		var line = generateLine(nodes, parseMap(shapeCallback(i)), startAt);
 
 		if (line) {
 			for (var j = line.length - 1; j >= 0; j--) {
@@ -521,8 +521,8 @@ function generateCode(list, shapeCallback) {
 			}
 		} else {
 			line = [];
-			for (var j = startAt, jj = list.length; j < jj; j++) {
-				line.push({node: list[j], position: j});
+			for (var j = startAt, jj = nodes.length; j < jj; j++) {
+				line.push({code: nodes[j], position: j});
 			}
 			kill = true;
 		}
