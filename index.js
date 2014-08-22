@@ -1,7 +1,7 @@
 "use strict";
 
 var htmlparser = require('htmlparser');
-var UglifyJS = require('./uglify-js/tools/node.js');
+var UglifyJS = require('./lib/tools/node.js');
 var nodeCSS = require('css');
 
 
@@ -11,7 +11,6 @@ var nodeCSS = require('css');
 
 module.exports = function(code, options) {
 	options = options || {};
-	options.padding_html = (options.padding_html || ';').toString();
 	switch (typeof options.shape) {
 		case 'function':
 		break;
@@ -463,38 +462,43 @@ function generateLine(nodes, map, startAt) {
 	var minScore = 1e6;
 	var minScoreLine = null;
 
-	for (var retry = 0, maxRetry = 5; retry <= maxRetry; retry++) {
+	for (var retry = 0, maxRetry = 10; retry <= maxRetry; retry++) {
 		var lastTry = retry == maxRetry;
 		var start = startAt;
 
 		var line = [];
 		if (lastTry) {
-			for (var ii = nodes.length; !nodes[start].padding && start < ii; start++) {
+			for (var ii = nodes.length; start < ii && !nodes[start].padding; start++) {
 				line.push({position: start, code: nodes[start].code});
 			}
 		} else {
-			for (var ii = start + retry; start < ii; start++) {
+			for (var i = retry, ii = nodes.length; i > 0 && start < ii; start++, i--) {
 				line.push({position: start, code: nodes[start].code});
 			}
 		}
 		line.push({breakline: true});
 
-		for (var i = 0, ii = map.length; i < ii; i++) {
-			if (!map[i].fill) {
-				line.push({space: map[i].width});
-			} else {
-				var blocks = generateBlock(nodes, map[i].width, start, i + 1 == ii, lastTry);
-				if (!blocks) return minScoreLine;
+		try {
+			for (var i = 0, ii = map.length; i < ii; i++) {
+				if (!map[i].fill) {
+					line.push({space: map[i].width});
+				} else {
+					var blocks = generateBlock(nodes, map[i].width, start, i + 1 == ii, lastTry);
+					if (!blocks) throw 0;
 
-				line = line.concat(blocks);
-				start = blocks[blocks.length - 1].position + 1;
+					line = line.concat(blocks);
+					start = blocks[blocks.length - 1].position + 1;
+				}
 			}
+		} catch (e) {
+			continue;
 		}
 
 		var score = 0;
 		for (var i = 0, ii = line.length; i < ii; i++) {
 			var block = line[i];
 			if (block.code) score += block.code.length;
+			if (block.space) score += block.space * 3;
 			if (block.padding) score += block.padding.width * 5;
 		}
 		if (score < minScore) {
@@ -502,6 +506,7 @@ function generateLine(nodes, map, startAt) {
 			minScoreLine = line;
 		}
 	}
+
 	return minScoreLine;
 }
 
@@ -522,7 +527,7 @@ function generateCode(nodes, shapeCallback) {
 		} else {
 			line = [];
 			for (var j = startAt, jj = nodes.length; j < jj; j++) {
-				line.push({code: nodes[j], position: j});
+				line.push({code: nodes[j].code, position: j});
 			}
 			kill = true;
 		}
