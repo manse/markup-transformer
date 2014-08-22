@@ -63,7 +63,7 @@ var spaces = [
 	'      ',
 ];
 
-function paddingHTML(attribs, seed) {
+function paddingHTMLMaker(attribs, seed) {
 	return function(n) {
 		if (n <= 3) {
 			return spaces[n];
@@ -101,7 +101,7 @@ function paddingCSSJS(n) {
 
 function parseHTML(html) {
 	var list = [];
-	var calls = 1e5;
+	var calls = 1e6;
 
 	function push(code, padding) {
 		code = code.replace(/\n/g, '');
@@ -134,7 +134,8 @@ function parseHTML(html) {
 				default:
 				var tag = node.name;
 				var attribs = node.attribs || {};
-				var pad = paddingHTML(attribs, calls += 557);
+				var pad = paddingHTMLMaker(attribs, calls += 557);
+
 				push('<' + tag, pad);
 				for (var key in attribs) {
 					push(' ' + key + '="' + attribs[key] + '"', pad);
@@ -528,33 +529,26 @@ function generateCode(list, shapeCallback) {
 			}
 			kill = true;
 		}
-		code += render(line);
-	}
 
-	return code;
-}
-
-
-function render(line) {
-	var code = '';
-
-	for (var i = 0, ii = line.length; i < ii; i++) {
-		var block = line[i];
-		if (!block.paddingonly && block.node) {
-			code += block.node.code;
-		}
-		if (block.padding) {
-			code += block.node.padding(block.padding);
-		}
-		if (block.space) {
-			for (var k = 0, kk = block.space; k < kk; k++) {
-				code += ' ';
+		for (var j = 0, jj = line.length; j < jj; j++) {
+			var block = line[j];
+			if (!block.paddingonly && block.node) {
+				code += block.node.code;
+			}
+			if (block.padding) {
+				code += block.node.padding(block.padding);
+			}
+			if (block.space) {
+				for (var k = 0, kk = block.space; k < kk; k++) {
+					code += ' ';
+				}
+			}
+			if (block.breakline) {
+				code += "\n";
 			}
 		}
-		if (block.breakline) {
-			code += "\n";
-		}
 	}
+
 	return code;
 }
 
