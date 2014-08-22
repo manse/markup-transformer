@@ -1,3 +1,4 @@
+// var transformer = require('node-markup-transformer');
 var transformer = require('../index.js');
 var fs = require('fs');
 
