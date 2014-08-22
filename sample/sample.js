@@ -1,10 +1,24 @@
-// var transformer = require('node-markup-transformer');
+// Load modules
+//----------------------------------------
 var transformer = require('../index.js');
+// var transformer = require('node-markup-transformer');
 var fs = require('fs');
 
 
+// Read target source code
+//----------------------------------------
 var src = fs.readFileSync('source.html', 'utf8');
-src = transformer(src, {
+
+
+// Transform without options
+//----------------------------------------
+var result0 = transformer(src);
+fs.writeFileSync('transformed_without_options.html', result0);
+
+
+// Transform with all options
+//----------------------------------------
+var result1 = transformer(src, {
 	syntax: 'html', // ..or 'css', 'js'
 
 	shape: function(n) {
@@ -34,4 +48,6 @@ src = transformer(src, {
 		return map[n % map.length];
 	}
 })
-fs.writeFileSync('transformed.html', src);
+fs.writeFileSync('transformed_zigzag.html', result1);
+
+
