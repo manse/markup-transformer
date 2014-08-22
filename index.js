@@ -53,43 +53,20 @@ module.exports = function(code, options) {
 // Padding
 //----------------------------------------
 
-var spaces = [
-	'',
-	' ',
-	'  ',
-	'   ',
-	'    ',
-	'     ',
-	'      ',
-];
-
-function paddingHTMLMaker(attribs, seed) {
-	return function(n) {
-		if (n <= 3) {
-			return spaces[n];
-		} else if (n == 4) {
-			return ('dir' in attribs) ? spaces[4] : ' dir';
-		} else if (n == 5) {
-			return ('lang' in attribs) ? spaces[5] : ' lang';
-		} else if (n == 6) {
-			return ('title' in attribs) ? spaces[6] : ' title';
+function paddingHTML(n) {
+	if (n <= 4) {
+		return ' pad'.substr(0, n);
+	} else {
+		var pad = '';
+		for (var i = 0, ii = Math.floor(n / 4), spaces = (n - 3 * ii) / ii; i < ii; i++) {
+			pad += repeat(' ', Math.floor(spaces * (i + 1)) - Math.floor(spaces * i)) + 'pad';
 		}
-		var attr;
-		for (var i = 0; i < 10; i++) {
-			attr = 'data-' + generateKey(seed += 151, n - 6);
-			if (!(attr in attribs)) break;
-		}
-		attribs[attr] = true;
-		return ' ' + attr;
+		return pad;
 	}
 }
 
 function paddingCSSJS(n) {
-	var pad = '';
-	for (var i = 0; i < n; i++) {
-		pad += ';';
-	}
-	return pad;
+	return repeat(';', n);
 }
 
 
@@ -100,15 +77,14 @@ function paddingCSSJS(n) {
 //----------------------------------------
 
 function parseHTML(html) {
-	var list = [];
-	var calls = 1e6;
+	var temp = [];
 
-	function push(code, padding) {
+	function push(code, type, padding) {
 		code = code.replace(/\n/g, '');
 		if (padding) {
-			list.push({code: code, padding: padding});
+			temp.push({code: code, type: type, padding: padding});
 		} else {
-			list.push({code: code});
+			temp.push({code: code, type: type});
 		}
 	}
 
@@ -120,27 +96,26 @@ function parseHTML(html) {
 				break;
 
 				case 'text':
-				var words = node.raw.split(' ');
+				var words = trim2(node.raw).split(' ');
 				for (var j = 0, jj = words.length; j < jj; j++) {
-					if (words[j].length == 0) continue;
-					push(words[j] + ' ');
+					var word = trim(words[j]);
+					push(word + (j + 1 == jj ? '' : ' '), 'text');
 				}
 				break;
 
 				case 'directive':
-				push('<' + node.raw + '>');
+				push('<' + node.raw + '>', 'tag');
 				break;
 
 				default:
 				var tag = node.name;
 				var attribs = node.attribs || {};
-				var pad = paddingHTMLMaker(attribs, calls += 557);
 
-				push('<' + tag, pad);
+				push('<' + tag, 'tag', paddingHTML);
 				for (var key in attribs) {
-					push(' ' + key + '="' + attribs[key] + '"', pad);
+					push(' ' + key + '="' + attribs[key] + '"', 'tag', paddingHTML);
 				}
-				push('>');
+				push('>', 'tag');
 
 				switch (tag) {
 					case 'br':
@@ -159,14 +134,14 @@ function parseHTML(html) {
 					continue;
 
 					case 'script':
-					if (!attribs.type || attribs.type == 'text/javascript') {
-						list = list.concat(parseJS(node.children[0].raw));
+					if ((!attribs.type || attribs.type == 'text/javascript') && node.children && node.children[0]) {
+						temp = temp.concat(parseJS(node.children[0].raw));
 					}
 					break;
 
 					case 'style':
-					if (!attribs.type || attribs.type == 'text/css') {
-						list = list.concat(parseCSS(node.children[0].raw));
+					if ((!attribs.type || attribs.type == 'text/css') && node.children && node.children[0]) {
+						temp = temp.concat(parseCSS(node.children[0].raw));
 					}
 					break;
 
@@ -174,7 +149,7 @@ function parseHTML(html) {
 					if (node.children) dig(node.children);
 				}
 
-				push('</' + tag + '>')
+				push('</' + tag + '>', 'tag')
 			}
 		}
 	}
@@ -182,6 +157,22 @@ function parseHTML(html) {
 	var handler = new htmlparser.DefaultHandler(function (error, dom) {});
 	new htmlparser.Parser(handler).parseComplete(html);
 	dig(handler.dom);
+
+	var list = [{code: ''}];
+	for (var i = 0, j = 0, ii = temp.length, lastType; i < ii; i++) {
+		var tmp = temp[i];
+		if (lastType == tmp.type || !tmp.type) {
+			list[++j] = tmp;
+		} else {
+			if (!list[j]) {
+				list[j] = tmp;
+			} else {
+				list[j].code += tmp.code;
+				list[j].padding = tmp.padding;
+			}
+		}
+		lastType = tmp.type;
+	}
 	return list;
 }
 
@@ -222,7 +213,7 @@ function parseCSS(css) {
 
 	function pushSplit(value, delimiter) {
 		var isSpace = (delimiter == ' ');
-		var values = trim(value).split(delimiter);
+		var values = trim2(value).split(delimiter);
 		for (var i = 0, ii = values.length; i < ii; i++) {
 			var tail = (i + 1 == ii);
 			var value = values[i];
@@ -252,7 +243,7 @@ function parseCSS(css) {
 				case 'page':
 				push('@page ');
 				for (var j = 0, jj = entry.selectors.length; j < jj; j++) {
-					push(trim(entry.selectors[j]));
+					push(trim2(entry.selectors[j]));
 					if (j + 1 != jj) push(',');
 				}
 				push('{');
@@ -297,7 +288,7 @@ function parseCSS(css) {
 					var keyframes = entry.keyframes[j];
 					if (keyframes.type != 'keyframe') continue;
 					for (var k = 0, kk = keyframes.values.length; k < kk; k++) {
-						push(trim(keyframes.values[k]));
+						push(trim2(keyframes.values[k]));
 						if (k + 1 != kk) push(',');
 					}
 					push('{');
@@ -577,20 +568,18 @@ function defaultShape(n) {
 	return map;
 }
 
-
-function generateKey(seed, len) {
-	var alphabet = 'TVJSWPXUMYANKHRDEOZFQLBGIC';
-	var base = alphabet.length;
-	seed = seed % Math.pow(base, len);
-	var key = '';
-	for (var i = 0; i < len; i++) {
-		key += alphabet[(seed + i) % base];
-		seed = Math.floor(seed / base);
+function repeat(str, count) {
+	var result = '';
+	for (var i = 0; i < count; i++) {
+		result += str;
 	}
-	return key;
+	return result;
 }
 
-
 function trim(str) {
-	return str.replace(/^\s+/, '').replace(/\s+$/, '').replace(/\s+/g, ' ');
+	return str.replace(/^\s+/, '').replace(/\s+$/, '');
+}
+
+function trim2(str) {
+	return trim(str).replace(/\s+/g, ' ');
 }
