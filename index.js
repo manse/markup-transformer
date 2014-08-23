@@ -307,7 +307,7 @@ function parseJS(js) {
 	var stream = UglifyJS.OutputStream({});
 	var toplevel = UglifyJS.parse(js);
 	toplevel.figure_out_scope();
-	toplevel.transform(UglifyJS.Compressor()).print(stream);
+	toplevel.transform(UglifyJS.Compressor({warnings: false})).print(stream);
 	var gets = stream.gets();
 
 	function next(pad) {
