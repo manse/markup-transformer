@@ -1,6 +1,13 @@
 # markup-transformer
 
-markup-transformer makes your html/css/javascript source into ASCII Art with keeping syntax.
+markup-transformer transforms your html/css/javascript source into ASCII Art with keeping syntax.
+https://www.npmjs.org/package/markup-transformer
+
+## Installation
+
+```
+npm install markup-transformer
+```
 
 ## Usage
 ```JavaScript
