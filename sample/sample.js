@@ -1,28 +1,34 @@
-// Load modules
-//----------------------------------------
-var transformer = require('../index.js');
-// var transformer = require('node-markup-transformer');
+/* Load modules */
+var markupTransformer = require('../index.js');
+// var markupTransformer = require('markup-transformer');
 var fs = require('fs');
 
 
-// Read target source code
-//----------------------------------------
-var src = fs.readFileSync('source.html', 'utf8');
+/* Read target source code */
+var sourceCode = fs.readFileSync('source.html', 'utf8');
 
 
-// Transform without options
-//----------------------------------------
-var result0 = transformer(src);
-fs.writeFileSync('transformed_without_options.html', result0);
+/* Transform without options
+	By default, source code should be transformed by hexagonal form and interpreted as HTML.
+*/
+var result0 = markupTransformer(sourceCode);
+fs.writeFileSync('transformed_default.html', result0);
+console.log(result0);
+console.log(';\n;\n;\n;');
 
 
-// Transform with all options
-//----------------------------------------
-var result1 = transformer(src, {
+/* Transform with options
+	There are two options, 'syntax' and 'shape'.
+*/
+var result1 = markupTransformer(sourceCode, {
 	syntax: 'html', // ..or 'css', 'js'
+	/* String,
+		Specifies syntax of the source code ('html' by default).
+		For example the source code is written in StyleSheet, you should pass {syntax: 'css'}.
+	*/
+
 
 	shape: function(n) {
-		console.log('Shape Requested: line number #' + n);
 		var map = [
 			'11111111111111111111111111111111111100000000000000011111111111111111111111111111111111111',
 			'11111111111111111111111111111111111100000000000000011111111111111111111111111111111111111',
@@ -47,7 +53,14 @@ var result1 = transformer(src, {
 		];
 		return map[n % map.length];
 	}
+	/* function,
+		Specifies the form to transform source code (`hexagonal form` by default).
+		The function gets passed one argument: a line number at the output, 
+		and should return a String which comprised of 0 or 1.
+		'1' will filled with transformed source code, and '0' will be blank (filled with spaces).
+	*/
 })
 fs.writeFileSync('transformed_zigzag.html', result1);
+console.log(result1);
 
 
