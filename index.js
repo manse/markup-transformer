@@ -189,6 +189,12 @@ function parseCSS(css) {
 		}
 	}
 
+	function pushBraces(inner) {
+		push('{');
+		inner();
+		push('}');
+	}
+
 	function pushDeclarations(declarations) {
 		for (var i = 0, ii = (declarations || []).length; i < ii; i++) {
 			var declaration = declarations[i];
@@ -233,9 +239,9 @@ function parseCSS(css) {
 					pushSplit(entry.selectors[j], ' ');
 					if (j + 1 != jj) push(',');
 				}
-				push('{');
-				pushDeclarations(entry.declarations);
-				push('}');
+				pushBraces(function() {
+					pushDeclarations(entry.declarations);
+				});
 				break;
 
 				case 'page':
@@ -244,9 +250,9 @@ function parseCSS(css) {
 					push(trim(entry.selectors[j]));
 					if (j + 1 != jj) push(',');
 				}
-				push('{');
-				pushDeclarations(entry.declarations);
-				push('}');
+				pushBraces(function() {
+					pushDeclarations(entry.declarations);
+				});
 				break;
 
 				case 'charset':
@@ -262,38 +268,40 @@ function parseCSS(css) {
 				case 'document':
 				push('@document ');
 				pushSplit(entry.document, ',');
-				push('{');
-				pushRules(entry.rules || []);
-				push('}');
+				pushBraces(function() {
+					pushRules(entry.rules || []);
+				});
 				break;
 
 				case 'media':
 				case 'supports':
-				push('@' + entry.type + ' ', entry[entry.type], '{');
-				pushRules(entry.rules || []);
-				push('}');
+				push('@' + entry.type + ' ', entry[entry.type]);
+				pushBraces(function() {
+					pushRules(entry.rules || []);
+				});
 				break;
 
 				case 'font-face':
-				push('@font-face', '{');
-				pushDeclarations(entry.declarations);
-				push('}');
+				pushBraces(function() {
+					pushDeclarations(entry.declarations);
+				});
 				break;
 
 				case 'keyframes':
-				push('@' + (entry.vendor || '') + 'keyframes ', entry.name, '{');
-				for (var j = 0, jj = entry.keyframes.length; j < jj; j++) {
-					var keyframes = entry.keyframes[j];
-					if (keyframes.type != 'keyframe') continue;
-					for (var k = 0, kk = keyframes.values.length; k < kk; k++) {
-						push(trim(keyframes.values[k]));
-						if (k + 1 != kk) push(',');
+				push('@' + (entry.vendor || '') + 'keyframes ', entry.name);
+				pushBraces(function() {
+					for (var j = 0, jj = entry.keyframes.length; j < jj; j++) {
+						var keyframes = entry.keyframes[j];
+						if (keyframes.type != 'keyframe') continue;
+						for (var k = 0, kk = keyframes.values.length; k < kk; k++) {
+							push(trim(keyframes.values[k]));
+							if (k + 1 != kk) push(',');
+						}
+						pushBraces(function() {
+							pushDeclarations(keyframes.declarations);
+						});
 					}
-					push('{');
-					pushDeclarations(keyframes.declarations);
-					push('}');
-				}
-				push('}');
+				});
 				break;
 			}
 		}
@@ -360,15 +368,15 @@ function parseJS(js) {
 //----------------------------------------
 
 function parseMap(map) {
-	var last;
 	var result = [];
-	for (var i = 0, ii = map.length; i < ii; i++) {
+	for (var i = 0, ii = map.length, cursor = -1, last; i < ii; i++) {
 		var isFill = map[i] != ' ' && map[i] != '0';
 		if (last != isFill) {
 			last = isFill;
+			cursor++;
 			result.push({fill: isFill, width: 1});
 		} else {
-			result[result.length - 1].width++;
+			result[cursor].width++;
 		}
 	}
 	return result;
@@ -378,8 +386,8 @@ function parseMap(map) {
 function generateBlock(nodes, width, startAt, eol, paddingEnd) {
 	var parts = [];
 	var length = 0;
-	var lastPaddingLocalIndex = -1;
-	var lastPaddingGlobalIndex = -1;
+	var lastPaddingLocalPosition = -1;
+	var lastPaddingGlobalPosition = -1;
 	for (var p = startAt, pp = nodes.length; p < pp; p++) {
 		var node = nodes[p];
 		if (length + node.code.length >= width && !eol) break; 
@@ -389,25 +397,25 @@ function generateBlock(nodes, width, startAt, eol, paddingEnd) {
 		});
 		length += node.code.length;
 		if (node.padding) {
-			lastPaddingLocalIndex = p - startAt;
-			lastPaddingGlobalIndex = p;
+			lastPaddingLocalPosition = p - startAt;
+			lastPaddingGlobalPosition = p;
 		}
 		if (length >= width && eol) break; 
 	}
 
 	if (paddingEnd) {
-		if (lastPaddingLocalIndex == -1) {
+		if (lastPaddingLocalPosition == -1) {
 			parts = [];
 			length = 0;
 		} else {
-			parts = parts.slice(0, lastPaddingLocalIndex + 1);
+			parts = parts.slice(0, lastPaddingLocalPosition + 1);
 			length = 0;
 			for (var i = 0, ii = parts.length; i < ii; i++) {
 				length += parts[i].code.length;
 			}
-			parts[lastPaddingLocalIndex].padding = {
+			parts[lastPaddingLocalPosition].padding = {
 				width: Math.abs(width - length),
-				using: nodes[lastPaddingGlobalIndex].padding
+				using: nodes[lastPaddingGlobalPosition].padding
 			}
 		}
 	}
@@ -434,10 +442,10 @@ function generateBlock(nodes, width, startAt, eol, paddingEnd) {
 			}
 		});
 		return parts;
-	} else if (lastPaddingLocalIndex != -1) {
-		parts[lastPaddingLocalIndex].padding = {
+	} else if (lastPaddingLocalPosition != -1) {
+		parts[lastPaddingLocalPosition].padding = {
 			width: width - length,
-			using: nodes[lastPaddingGlobalIndex].padding
+			using: nodes[lastPaddingGlobalPosition].padding
 		};
 		return parts;
 	} else if (parts.length > 1) {
@@ -459,7 +467,7 @@ function generateBlock(nodes, width, startAt, eol, paddingEnd) {
 
 
 function generateLine(nodes, map, startAt) {
-	var minScore = 1e6;
+	var minScore = 1e8;
 	var minScoreLine = null;
 
 	for (var retry = 0, maxRetry = 10; retry <= maxRetry; retry++) {
@@ -468,11 +476,15 @@ function generateLine(nodes, map, startAt) {
 
 		var line = [];
 		if (lastTry) {
-			for (var ii = nodes.length; start < ii && !nodes[start].padding; start++) {
+			for (var ii = nodes.length; start < ii; start++) {
 				line.push({position: start, code: nodes[start].code});
+				if (nodes[start].padding) {
+					start++;
+					break;
+				}
 			}
 		} else {
-			for (var i = retry, ii = nodes.length; i > 0 && start < ii; start++, i--) {
+			for (var ii = Math.min(nodes.length, start + retry); start < ii; start++) {
 				line.push({position: start, code: nodes[start].code});
 			}
 		}
@@ -495,13 +507,17 @@ function generateLine(nodes, map, startAt) {
 		}
 
 		var score = 0;
+		var paddingOnly = true;
 		for (var i = 0, ii = line.length; i < ii; i++) {
 			var block = line[i];
-			if (block.code) score += block.code.length;
+			if (block.code) {
+				score += block.code.length;
+				paddingOnly = false;
+			}
 			if (block.space) score += block.space * 3;
 			if (block.padding) score += block.padding.width * 5;
 		}
-		if (score < minScore) {
+		if (score < minScore && !paddingOnly) {
 			minScore = score;
 			minScoreLine = line;
 		}
@@ -541,9 +557,7 @@ function generateCode(nodes, shapeCallback) {
 				code += block.padding.using(block.padding.width);
 			}
 			if (block.space) {
-				for (var k = 0, kk = block.space; k < kk; k++) {
-					code += ' ';
-				}
+				code += repeat(' ', block.space);
 			}
 			if (block.breakline) {
 				code += "\n";
@@ -559,30 +573,32 @@ function generateCode(nodes, shapeCallback) {
 //----------------------------------------
 // Util
 //----------------------------------------
-
-function defaultShape(n) {
+var defaultShape = (function() {
 	var size = 50;
 	var paddingX = 30;
 	var paddingY = 8;
 	var width = size + paddingX * 2;
 	var height = size + paddingY * 2;
-	n *= 1.75;
-	n %= height;
 
-	var hex;
-	if (n < paddingY || n > size + paddingY) {
-		hex = 0;
-	} else {
-		if (n > height / 2) n = height - n;
-		hex = Math.min((n - paddingY) / (size / 4), 1) * size;
+	return function(n) {
+		n *= 1.75;
+		n %= height;
+
+		var hex;
+		if (n < paddingY || n > size + paddingY) {
+			hex = 0;
+		} else {
+			if (n > height / 2) n = height - n;
+			hex = Math.min((n - paddingY) / (size / 4), 1) * size;
+		}
+		var map = '';
+		var threshold = (width - hex) / 2;
+		for (var i = 0; i < width; i++) {
+			map += (i <= threshold || width - threshold <= i) ? '1' : '0';
+		}
+		return map;
 	}
-	var map = '';
-	var threshold = (width - hex) / 2;
-	for (var i = 0; i < width; i++) {
-		map += (i <= threshold || width - threshold <= i) ? '1' : '0';
-	}
-	return map;
-}
+})();
 
 function repeat(str, count) {
 	var result = '';
