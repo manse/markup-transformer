@@ -315,7 +315,11 @@ function parseJS(js) {
 	var stream = UglifyJS.OutputStream({});
 	var toplevel = UglifyJS.parse(js);
 	toplevel.figure_out_scope();
-	toplevel.transform(UglifyJS.Compressor({warnings: false})).print(stream);
+	toplevel.compute_char_frequency();
+	toplevel.mangle_names();
+	toplevel.transform(UglifyJS.Compressor({
+		warnings: true
+	})).print(stream);
 	var gets = stream.gets();
 
 	function next(pad) {
