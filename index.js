@@ -336,6 +336,13 @@ function parseJS(js) {
 	var nodes = [{code: ''}];
 	var cursor = 0;
 	var infor = 0;
+	var sensor = {
+		'if': 1,
+		'else': 1,
+		'for': 1,
+		'while': 1,
+		'do': 1,
+	};
 	for (var i = 0, ii = gets.length; i < ii; i++) {
 		var a = gets[i];
 		var b = gets[i + 1];
@@ -348,7 +355,7 @@ function parseJS(js) {
 			i++;
 		} else {
 			push(a);
-			next(!infor && a == ';');
+			next(!infor && a == ';' && !sensor[b]);
 
 			if (a == 'for') {
 				infor = 2;
