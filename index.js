@@ -346,7 +346,7 @@ function parseJS(js) {
 	for (var i = 0, ii = gets.length; i < ii; i++) {
 		var a = gets[i];
 		var b = gets[i + 1];
-		if (a == 'return') {
+		if (a == 'return' || a == 'throw') {
 			push(a, b);
 			i++;
 		} else if (b == '++' || b == '--') {
@@ -401,7 +401,7 @@ function generateBlock(nodes, width, startAt, eol, paddingEnd) {
 	var lastPaddingGlobalPosition = -1;
 	for (var p = startAt, pp = nodes.length; p < pp; p++) {
 		var node = nodes[p];
-		if (length + node.code.length >= width && !eol) break; 
+		if (length + node.code.length >= width && !eol) break;
 		parts.push({
 			position: p,
 			code: node.code
@@ -411,7 +411,7 @@ function generateBlock(nodes, width, startAt, eol, paddingEnd) {
 			lastPaddingLocalPosition = p - startAt;
 			lastPaddingGlobalPosition = p;
 		}
-		if (length >= width && eol) break; 
+		if (length >= width && eol) break;
 	}
 
 	if (paddingEnd) {
