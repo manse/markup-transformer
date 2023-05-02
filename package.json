@@ -1,6 +1,6 @@
 {
   "name": "markup-transformer",
-  "version": "0.0.7",
+  "version": "0.0.8",
   "description": "markup-transformer transforms html/css/javascript source into ASCII Art with keeping syntax.",
   "main": "index.js",
   "dependencies": {
